@@ -419,6 +419,7 @@ export default function App() {
           school={detailModalSchool}
           distanceResult={allDistanceResults.find((r) => r.school.id === detailModalSchool.id) || null}
           userProfile={userProfile}
+          homeCoords={homeCoords}
           onClose={() => setDetailModalSchool(null)}
           onToggleShortlist={handleToggleShortlist}
           isShortlisted={shortlistedSchools.some((s) => s.id === detailModalSchool.id)}

@@ -291,6 +291,67 @@ export function evaluateP1RegistrationChance(
  * This function provides the drop-in signature for connecting to SLA OneMap API,
  * MOE SchoolFinder backend, or custom Express/PostgreSQL backend.
  */
+export interface OneMapLiveRouteResult {
+  success: boolean;
+  source: 'onemap_live' | 'geodesic_fallback';
+  hasAccountKey?: boolean;
+  distanceMeters: number;
+  distanceKm: number;
+  durationSeconds: number;
+  durationMinutes: number;
+  routeType: 'walk' | 'drive' | 'cycle' | 'pt';
+  statusMessage?: string;
+  warning?: string;
+  error?: string;
+}
+
+/**
+ * Queries the /api/schooldistance serverless endpoint for live SLA OneMap route data
+ * (walk, drive, cycle, pt)
+ */
+export async function fetchLiveOneMapRoute(
+  startCoords: Coordinates,
+  endCoords: Coordinates,
+  routeType: 'walk' | 'drive' | 'cycle' | 'pt' = 'walk',
+  schoolId?: string
+): Promise<OneMapLiveRouteResult> {
+  const params = new URLSearchParams({
+    start: `${startCoords.lat},${startCoords.lng}`,
+    end: `${endCoords.lat},${endCoords.lng}`,
+    routeType,
+  });
+  if (schoolId) params.set('schoolId', schoolId);
+
+  try {
+    const res = await fetch(`/api/schooldistance?${params.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch {
+    // If backend route fails or network issue, compute client-side fallback
+  }
+
+  const geodesicKm = calculateHaversineDistanceKm(startCoords, endCoords);
+  const meters = Math.round(geodesicKm * 1000);
+  const durSec = routeType === 'walk' ? Math.round(meters / 1.33) : Math.round(meters / 8.33);
+
+  return {
+    success: true,
+    source: 'geodesic_fallback',
+    hasAccountKey: false,
+    distanceMeters: meters,
+    distanceKm: geodesicKm,
+    durationSeconds: durSec,
+    durationMinutes: Math.round(durSec / 60),
+    routeType,
+    warning: 'Local fallback used',
+  };
+}
+
+/**
+ * Service hook / integration abstraction for Backend Connection.
+ */
 export async function fetchDistancesFromBackend(
   homeCoords: Coordinates,
   schools: PrimarySchool[],
@@ -319,3 +380,4 @@ export async function fetchDistancesFromBackend(
   // Instant local client-side calculation fallback
   return computeAllSchoolDistances(homeCoords, schools);
 }
+

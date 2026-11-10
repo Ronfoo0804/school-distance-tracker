@@ -17,29 +17,24 @@ export const BackendIntegrationGuide: React.FC<BackendIntegrationGuideProps> = (
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const sampleExpressRoute = `// server.ts or express backend router
-import express from 'express';
+  const sampleOneMapRoutingCode = `// /api/schooldistance.ts live OneMap routing query
+// SLA OneMap Routing Endpoint:
+// https://www.onemap.gov.sg/api/public/routingsvc/route?start={start}&end={end}&routeType={walk|drive|cycle|pt}
+// Header: AccountKey: <your_key>
 
-const app = express();
-app.use(express.json());
+const oneMapUrl = \`https://www.onemap.gov.sg/api/public/routingsvc/route?start=\${start}&end=\${end}&routeType=\${routeType}\`;
 
-// Singapore Home-School Distance API endpoint
-app.post('/api/calculate-distances', async (req, res) => {
-  const { homeCoordinates, schoolIds } = req.body;
-  // homeCoordinates: { lat: 1.3526, lng: 103.8490 }
-  // Optional: Query SLA OneMap API for School Land Boundary (SLB)
-  
-  // Or query your database / PostgreSQL with PostGIS:
-  // SELECT id, name, ST_DistanceSphere(geom, ST_MakePoint($lng, $lat)) as distance_meters FROM primary_schools;
+const response = await fetch(oneMapUrl, {
+  method: 'GET',
+  headers: {
+    'Accept': 'application/json',
+    'AccountKey': process.env.ONEMAP_ACCOUNT_KEY || '',
+  },
+});
 
-  res.json({
-    status: 'success',
-    timestamp: new Date().toISOString(),
-    results: [
-      /* Return array of SchoolDistanceResult objects matching types.ts */
-    ]
-  });
-});`;
+const data = await response.json();
+// Returns route_summary with total_distance (m), total_time (s), route_geometry, etc.`;
+
 
   const sampleOneMapCode = `// SLA OneMap Geocoding API Integration
 async function geocodeSingaporePostal(postalCode: string) {
@@ -127,20 +122,23 @@ async function geocodeSingaporePostal(postalCode: string) {
             </div>
           </div>
 
-          {/* Express / Custom Endpoint Recipe */}
+          {/* Live OneMap Routing Endpoint */}
           <div>
             <h4 className="font-semibold text-slate-900 mb-1">
-              Sample Backend Endpoint Contract (<code className="font-mono">POST /api/calculate-distances</code>)
+              OneMap Serverless Route Handler (<code className="font-mono">GET/POST /api/schooldistance</code>)
             </h4>
+            <p className="text-slate-600 mb-2">
+              Handles routing for <code className="font-mono text-slate-800">walk</code>, <code className="font-mono text-slate-800">drive</code>, <code className="font-mono text-slate-800">cycle</code>, and <code className="font-mono text-slate-800">pt</code> (public transit) with the required <code className="font-mono text-slate-800">AccountKey:</code> header:
+            </p>
             <div className="relative rounded-lg bg-slate-900 p-3 text-slate-200 font-mono text-[11px] overflow-x-auto">
               <button
-                onClick={() => handleCopy('express', sampleExpressRoute)}
+                onClick={() => handleCopy('routing', sampleOneMapRoutingCode)}
                 className="absolute top-2.5 right-2.5 p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded flex items-center gap-1 text-[10px]"
               >
-                {copiedCode === 'express' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                {copiedCode === 'express' ? 'Copied' : 'Copy'}
+                {copiedCode === 'routing' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                {copiedCode === 'routing' ? 'Copied' : 'Copy'}
               </button>
-              <pre>{sampleExpressRoute}</pre>
+              <pre>{sampleOneMapRoutingCode}</pre>
             </div>
           </div>
 

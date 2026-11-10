@@ -1,12 +1,14 @@
-import React from 'react';
-import { PrimarySchool, SchoolDistanceResult, UserEligibilityProfile } from '../types';
-import { evaluateP1RegistrationChance } from '../utils/distanceUtils';
+import React, { useState } from 'react';
+import { Coordinates, PrimarySchool, SchoolDistanceResult, UserEligibilityProfile } from '../types';
+import { evaluateP1RegistrationChance, fetchLiveOneMapRoute, OneMapLiveRouteResult } from '../utils/distanceUtils';
 import {
   X,
   MapPin,
   Compass,
   Footprints,
   Car,
+  Bike,
+  Bus,
   BookOpen,
   GraduationCap,
   Sparkles,
@@ -15,12 +17,15 @@ import {
   ShieldAlert,
   Clock,
   HeartHandshake,
+  Navigation,
+  Loader2,
 } from 'lucide-react';
 
 interface SchoolDetailModalProps {
   school: PrimarySchool | null;
   distanceResult: SchoolDistanceResult | null;
   userProfile: UserEligibilityProfile;
+  homeCoords?: Coordinates;
   onClose: () => void;
   onToggleShortlist: (school: PrimarySchool) => void;
   isShortlisted: boolean;
@@ -30,11 +35,34 @@ export const SchoolDetailModal: React.FC<SchoolDetailModalProps> = ({
   school,
   distanceResult,
   userProfile,
+  homeCoords,
   onClose,
   onToggleShortlist,
   isShortlisted,
 }) => {
+  const [liveRouteType, setLiveRouteType] = useState<'walk' | 'drive' | 'cycle' | 'pt'>('walk');
+  const [liveRouteResult, setLiveRouteResult] = useState<OneMapLiveRouteResult | null>(null);
+  const [isLoadingLiveRoute, setIsLoadingLiveRoute] = useState<boolean>(false);
+
   if (!school) return null;
+
+  const handleQueryLiveRoute = async () => {
+    if (!homeCoords) return;
+    setIsLoadingLiveRoute(true);
+    try {
+      const res = await fetchLiveOneMapRoute(
+        homeCoords,
+        { lat: school.latitude, lng: school.longitude },
+        liveRouteType,
+        school.id
+      );
+      setLiveRouteResult(res);
+    } catch {
+      // Error handled inside fetchLiveOneMapRoute
+    } finally {
+      setIsLoadingLiveRoute(false);
+    }
+  };
 
   const evaluation = distanceResult
     ? evaluateP1RegistrationChance(distanceResult, userProfile)
@@ -136,6 +164,130 @@ export const SchoolDetailModal: React.FC<SchoolDetailModalProps> = ({
                   <li key={i}>{note}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Live OneMap Route Query Panel */}
+          {homeCoords && (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 font-semibold text-slate-900">
+                  <Navigation className="w-4 h-4 text-emerald-600" />
+                  <span>OneMap Live Route Service (/api/schooldistance)</span>
+                </div>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  SLA Routing API (walk · drive · cycle · pt)
+                </span>
+              </div>
+
+              {/* Mode Selector */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-500 font-medium">Mode:</span>
+                <div className="flex items-center gap-1 p-0.5 bg-slate-200/70 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setLiveRouteType('walk')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors ${
+                      liveRouteType === 'walk'
+                        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Footprints className="w-3.5 h-3.5" /> Walk
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLiveRouteType('drive')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors ${
+                      liveRouteType === 'drive'
+                        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Car className="w-3.5 h-3.5" /> Drive
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLiveRouteType('cycle')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors ${
+                      liveRouteType === 'cycle'
+                        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Bike className="w-3.5 h-3.5" /> Cycle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLiveRouteType('pt')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors ${
+                      liveRouteType === 'pt'
+                        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Bus className="w-3.5 h-3.5" /> Public Transit
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleQueryLiveRoute}
+                  disabled={isLoadingLiveRoute}
+                  className="ml-auto px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-2xs whitespace-nowrap"
+                >
+                  {isLoadingLiveRoute ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Querying...
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="w-3.5 h-3.5" /> Query Route
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Live Result Readout */}
+              {liveRouteResult && (
+                <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-800">
+                      Route Type: <span className="capitalize">{liveRouteResult.routeType}</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      Source: {liveRouteResult.source === 'onemap_live' ? 'Live OneMap API' : 'Calculated Fallback'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
+                    <div className="p-2 bg-slate-50 rounded">
+                      <span className="text-[10px] text-slate-500 block">Total Distance</span>
+                      <span className="font-bold text-slate-900 text-sm">
+                        {liveRouteResult.distanceKm} km ({liveRouteResult.distanceMeters.toLocaleString()} m)
+                      </span>
+                    </div>
+                    <div className="p-2 bg-slate-50 rounded">
+                      <span className="text-[10px] text-slate-500 block">Estimated Duration</span>
+                      <span className="font-bold text-slate-900 text-sm">
+                        ~{liveRouteResult.durationMinutes} mins ({liveRouteResult.durationSeconds} s)
+                      </span>
+                    </div>
+                  </div>
+
+                  {liveRouteResult.statusMessage && (
+                    <p className="text-[11px] text-slate-600 mt-1">
+                      Status: {liveRouteResult.statusMessage}
+                    </p>
+                  )}
+
+                  {liveRouteResult.warning && (
+                    <p className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200">
+                      {liveRouteResult.warning}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
