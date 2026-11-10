@@ -1,0 +1,6 @@
+{
+  "name": "SG Primary School Distance Finder & P1 Navigator",
+  "description": "Singapore Primary School home-school distance calculator and Primary 1 (P1) registration priority navigator based on MOE & SLA OneMap distance bands.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
